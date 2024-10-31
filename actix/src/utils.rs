@@ -7,6 +7,7 @@ use regex::Regex;
 use rusqlite::Connection;
 use serde::Deserialize;
 use std::env;
+use once_cell::sync::Lazy;
 
 use crate::database;
 
@@ -17,10 +18,19 @@ struct URLPair {
     longlink: String,
 }
 
+// Struct for readling user edit API call
 #[derive(Deserialize)]
 struct EditLinkJson {
     longlink: String,
 }
+
+// Regex for URL
+const URL_REGEX: &str = r"http[s]?:\/\/(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+";
+
+// Lazy Statics for URL Regex
+static LAZY_REGEX: Lazy<Regex>=  Lazy::new(|| {
+    Regex::new(URL_REGEX).unwrap()
+});
 
 // Request the DB for searching an URL
 pub fn get_longurl(shortlink: String, db: &Connection) -> Option<String> {
@@ -51,6 +61,14 @@ pub fn add_link(req: String, db: &Connection) -> (bool, String) {
     } else {
         // shorturl should always be supplied, even if empty
         return (false, String::from("Invalid request!"));
+    }
+
+    // Check if longlink is actually URL
+    if !url_scheme_check(chunks.longlink.clone()) {
+        return (
+            false,
+            String::from("URL scheme check failed!"),
+        )
     }
 
     let style = env::var("slug_style").unwrap_or(String::from("Pair"));
@@ -95,6 +113,14 @@ pub fn edit_link(req: String, shortlink: String, db: &Connection) -> (bool, Stri
         (false, String::from("Invaild edit parameter received."));
     }
 
+    // Check if longlink is actually URL
+    if !url_scheme_check(chunks.longlink.clone()) {
+        return (
+            false,
+            String::from("URL scheme check failed!"),
+        )
+    }
+
     if longurl_compares(shortlink.clone(), chunks.longlink.clone(), db)
     {
         (
@@ -107,18 +133,6 @@ pub fn edit_link(req: String, shortlink: String, db: &Connection) -> (bool, Stri
             String::from("Long/Short URL not valid or already in use!"),
         )
     }
-}
-
-// Doing Longurl check(Type None or existed?)
-pub fn longurl_compares(shorturl: String, longurl:String, db: &Connection) -> bool {
-    if get_longurl(shorturl.clone(), db).is_none() {
-        return false;
-    }
-
-    if get_longurl(shorturl.clone(), db).unwrap() == longurl {
-        return  false;
-    }
-    return true;
 }
 
 // Check if link, and request DB to delete it if exists
@@ -180,4 +194,21 @@ fn gen_link(style: String, len: usize) -> String {
                 .expect("Error choosing random name.")
         )
     }
+}
+
+// Doing Longurl check(Type None or existed?)
+fn longurl_compares(shorturl: String, longurl:String, db: &Connection) -> bool {
+    if get_longurl(shorturl.clone(), db).is_none() {
+        return false;
+    }
+
+    if get_longurl(shorturl.clone(), db).unwrap() == longurl {
+        return  false;
+    }
+    return true;
+}
+
+// Check if input is URL or not.
+fn url_scheme_check(url: String) -> bool {
+    return LAZY_REGEX.is_match(&url)
 }

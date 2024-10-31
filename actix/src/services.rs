@@ -4,11 +4,7 @@
 use actix_files::NamedFile;
 use actix_session::Session;
 use actix_web::{
-    delete, get,
-    http::StatusCode,
-    post,
-    web::{self, Redirect},
-    Either, HttpResponse, Responder,
+    delete, get, http::StatusCode, post, put, web::{self, Redirect}, Either, HttpResponse, Responder
 };
 use std::env;
 
@@ -125,6 +121,26 @@ pub async fn logout(session: Session) -> HttpResponse {
         HttpResponse::Ok().body("Logged out!")
     } else {
         HttpResponse::Unauthorized().body("You don't seem to be logged in.")
+    }
+}
+
+// Edit link
+#[put("/api/edit/{shortlink}")]
+pub async fn edit_link(
+    req: String, 
+    shortlink: web::Path<String>,
+    data: web::Data<AppState>, 
+    session: Session,
+) -> HttpResponse {
+    if env::var("public_mode") == Ok(String::from("Enable")) || auth::validate(session) {
+        let out = utils::edit_link(req, shortlink.to_string(), &data.db);
+        if out.0 {
+            HttpResponse::Created().body(out.1)
+        } else {
+            HttpResponse::Conflict().body(out.1)
+        }
+    } else {
+        HttpResponse::Unauthorized().body("Not logged in!")
     }
 }
 

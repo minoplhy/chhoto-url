@@ -105,19 +105,20 @@ const TR = (row, site) => {
     var shortTD = null;
     if (window.isSecureContext) {
         shortTD = TD(A_SHORT(row["shortlink"], site), "Short URL");
-    }
-    else {
+    } else {
         shortTD = TD(A_SHORT_INSECURE(row["shortlink"], site), "Short URL");
     }
     let hitsTD = TD(row["hits"]);
     hitsTD.setAttribute("label", "Hits");
     hitsTD.setAttribute("name", "hitsColumn");
-    const btn = deleteButton(row["shortlink"]);
+    const deleteBtn = deleteButton(row["shortlink"]);
+    const editBtn = editButton(row["shortlink"]);
 
     tr.appendChild(shortTD);
     tr.appendChild(longTD);
     tr.appendChild(hitsTD);
-    tr.appendChild(btn);
+    tr.appendChild(editBtn);
+    tr.appendChild(deleteBtn);
 
     return tr;
 }
@@ -176,6 +177,53 @@ const deleteButton = (shortUrl) => {
     div.appendChild(btn);
     td.appendChild(div);
     return td;
+}
+
+const editButton = (shortUrl) => {
+    const td = document.createElement("td");
+    const btn = document.createElement("button");
+    btn.innerHTML = "Edit";
+
+    btn.onclick = async (e) => {
+        e.preventDefault();
+        const newUrl = prompt("Enter the new long URL:");
+
+        if (newUrl) {
+            if (!isValidUrl(newUrl)) {
+                showAlert("Invalid URL format. Please enter a valid URL.", "red");
+                return;
+            }
+
+            const response = await fetch(prepSubdir(`/api/edit/${shortUrl}`), {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ longlink: newUrl }),
+            });
+
+            if (response.ok) {
+                showAlert(`Successfully updated ${shortUrl}.`, "green");
+                refreshData();
+            } else {
+                const errorMsg = await response.text();
+                showAlert(`Error: ${errorMsg}`, "red");
+            }
+        }
+    };
+
+    td.setAttribute("name", "editBtn");
+    td.appendChild(btn);
+    return td;
+}
+
+const isValidUrl = (urlString) => {
+    try {
+        new URL(urlString);
+        return true;
+    } catch (_) {
+        return false;  
+    }
 }
 
 const TD = (s, u) => {

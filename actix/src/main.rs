@@ -63,6 +63,7 @@ async fn main() -> Result<()> {
             .service(services::siteurl)
             .service(services::version)
             .service(services::add_link)
+            .service(services::edit_link)
             .service(services::delete_link)
             .service(services::login)
             .service(services::logout)

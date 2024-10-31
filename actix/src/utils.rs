@@ -17,6 +17,11 @@ struct URLPair {
     longlink: String,
 }
 
+#[derive(Deserialize)]
+struct EditLinkJson {
+    longlink: String,
+}
+
 // Request the DB for searching an URL
 pub fn get_longurl(shortlink: String, db: &Connection) -> Option<String> {
     if validate_link(&shortlink) {
@@ -74,6 +79,46 @@ pub fn add_link(req: String, db: &Connection) -> (bool, String) {
             String::from("Short URL not valid or already in use!"),
         )
     }
+}
+
+// Make Check then edit the longurl link
+pub fn edit_link(req: String, shortlink: String, db: &Connection) -> (bool, String) {
+    let chunks: EditLinkJson;
+    if let Ok(json) = serde_json::from_str(&req) {
+        chunks = json;
+    } else {
+        // shorturl should always be supplied, even if empty
+        return (false, String::from("Invalid request!"));
+    }
+
+    if shortlink.is_empty() {
+        (false, String::from("Invaild edit parameter received."));
+    }
+
+    if longurl_compares(shortlink.clone(), chunks.longlink.clone(), db)
+    {
+        (
+            database::edit_link(shortlink.clone(), chunks.longlink, db),
+            shortlink,
+        )
+    } else {
+        (
+            false,
+            String::from("Long/Short URL not valid or already in use!"),
+        )
+    }
+}
+
+// Doing Longurl check(Type None or existed?)
+pub fn longurl_compares(shorturl: String, longurl:String, db: &Connection) -> bool {
+    if get_longurl(shorturl.clone(), db).is_none() {
+        return false;
+    }
+
+    if get_longurl(shorturl.clone(), db).unwrap() == longurl {
+        return  false;
+    }
+    return true;
 }
 
 // Check if link, and request DB to delete it if exists

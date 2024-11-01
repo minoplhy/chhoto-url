@@ -123,13 +123,9 @@ pub async fn login(req: String, session: Session) -> HttpResponse {
     HttpResponse::Ok().body("Correct password!")
 }
 
-// Create API Key, Will be disabled on public mode
+// Create API Key
 #[post("/api/key")]
 pub async fn gen_api_key(session: Session, httprequest: HttpRequest, data: web::Data<AppState>) -> HttpResponse {
-    if env::var("public_mode") == Ok(String::from("Enable")) {
-        return HttpResponse::Forbidden().body("Public mode is enabled!");
-    }
-
     if auth::validate(session) || apikey_validate(httprequest, data.clone()) {
         let key = utils::gen_api_key(&data.db);
         if key.0 {
@@ -161,7 +157,7 @@ pub async fn edit_link(
     session: Session,
     httprequest: HttpRequest,
 ) -> HttpResponse {
-    if env::var("public_mode") == Ok(String::from("Enable")) || auth::validate(session) || apikey_validate(httprequest, data.clone()) {
+    if auth::validate(session) || apikey_validate(httprequest, data.clone()) {
         let out = utils::edit_link(req, shortlink.to_string(), &data.db);
         if out.0 {
             HttpResponse::Created().body(out.1)

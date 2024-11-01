@@ -48,6 +48,7 @@ const refreshData = async () => {
         console.log(errorMsg);
         if (errorMsg == "Using public mode.") {
             document.getElementById("admin-button").hidden = false;
+            document.getElementById("api-key-button").hidden = true; // Hide initially
             loading_text = document.getElementById("loading-text");
             loading_text.hidden = true;
             showVersion();
@@ -57,6 +58,7 @@ const refreshData = async () => {
     } else {
         let data = await res.json();
         displayData(data);
+        document.getElementById("api-key-button").hidden = false; // Show API Key button when logged in
     }
 }
 
@@ -67,6 +69,10 @@ const displayData = async (data) => {
     admin_button.innerText = "logout";
     admin_button.href = "javascript:logOut()";
     admin_button.hidden = false;
+
+    apikey_button = document.getElementById("api-key-button");
+    apikey_button.innerText = "API Key"
+    apikey_button.hidden = false;
 
     table_box = document.getElementById("table-box");
     loading_text = document.getElementById("loading-text");
@@ -287,6 +293,20 @@ const submitLogin = () => {
             password.focus();
         }
     })
+}
+
+const fetchApiKey = async () => {
+    const response = await fetch(prepSubdir("/api/key"), {
+        method: "POST"
+    });
+
+    if (response.ok) {
+        const apiKey = await response.text();
+        prompt("API Key:", apiKey);
+    } else {
+        const error_text = await response.text();
+        alert("Failed to fetch API Key: " + error_text);
+    }
 }
 
 const logOut = async () => {

@@ -4,11 +4,11 @@
 use actix_files::NamedFile;
 use actix_session::Session;
 use actix_web::{
-    delete, get, http::StatusCode, post, put, web::{self, Redirect}, Either, HttpResponse, Responder
+    delete, get, http::StatusCode, post, put, web::{self, Redirect}, Either, HttpRequest, HttpResponse, Responder
 };
 use std::env;
 
-use crate::auth;
+use crate::auth::{self, apikey_validate};
 use crate::database;
 use crate::utils;
 use crate::AppState;
@@ -20,8 +20,13 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 // Add new links
 #[post("/api/new")]
-pub async fn add_link(req: String, data: web::Data<AppState>, session: Session) -> HttpResponse {
-    if env::var("public_mode") == Ok(String::from("Enable")) || auth::validate(session) {
+pub async fn add_link(
+    req: String, 
+    data: web::Data<AppState>, 
+    session: Session, 
+    httprequest: HttpRequest) 
+    -> HttpResponse {
+    if env::var("public_mode") == Ok(String::from("Enable")) || auth::validate(session) || apikey_validate(httprequest, data.clone()) {
         let out = utils::add_link(req, &data.db);
         if out.0 {
             HttpResponse::Created().body(out.1)
@@ -35,8 +40,12 @@ pub async fn add_link(req: String, data: web::Data<AppState>, session: Session) 
 
 // Return all active links
 #[get("/api/all")]
-pub async fn getall(data: web::Data<AppState>, session: Session) -> HttpResponse {
-    if auth::validate(session) {
+pub async fn getall(
+    data: web::Data<AppState>, 
+    session: Session, 
+    httprequest: HttpRequest
+) -> HttpResponse {
+    if auth::validate(session) || apikey_validate(httprequest, data.clone()) {
         HttpResponse::Ok().body(utils::getall(&data.db))
     } else {
         let body = if env::var("public_mode") == Ok(String::from("Enable")) {
@@ -114,6 +123,25 @@ pub async fn login(req: String, session: Session) -> HttpResponse {
     HttpResponse::Ok().body("Correct password!")
 }
 
+// Create API Key, Will be disabled on public mode
+#[post("/api/key")]
+pub async fn gen_api_key(session: Session, httprequest: HttpRequest, data: web::Data<AppState>) -> HttpResponse {
+    if env::var("public_mode") == Ok(String::from("Enable")) {
+        return HttpResponse::Forbidden().body("Public mode is enabled!");
+    }
+
+    if auth::validate(session) || apikey_validate(httprequest, data.clone()) {
+        let key = utils::gen_api_key(&data.db);
+        if key.0 {
+            HttpResponse::Ok().body(key.1)
+        } else {
+            HttpResponse::Conflict().body("Generate Api Key Error!")
+        }
+    } else {
+        HttpResponse::Unauthorized().body("Not logged in!")
+    }
+}
+
 // Handle logout
 #[delete("/api/logout")]
 pub async fn logout(session: Session) -> HttpResponse {
@@ -131,8 +159,9 @@ pub async fn edit_link(
     shortlink: web::Path<String>,
     data: web::Data<AppState>, 
     session: Session,
+    httprequest: HttpRequest,
 ) -> HttpResponse {
-    if env::var("public_mode") == Ok(String::from("Enable")) || auth::validate(session) {
+    if env::var("public_mode") == Ok(String::from("Enable")) || auth::validate(session) || apikey_validate(httprequest, data.clone()) {
         let out = utils::edit_link(req, shortlink.to_string(), &data.db);
         if out.0 {
             HttpResponse::Created().body(out.1)
@@ -150,8 +179,9 @@ pub async fn delete_link(
     shortlink: web::Path<String>,
     data: web::Data<AppState>,
     session: Session,
+    httprequest: HttpRequest,
 ) -> HttpResponse {
-    if auth::validate(session) {
+    if auth::validate(session) || apikey_validate(httprequest, data.clone()) {
         if utils::delete_link(shortlink.to_string(), &data.db) {
             HttpResponse::Ok().body(format!("Deleted {shortlink}"))
         } else {

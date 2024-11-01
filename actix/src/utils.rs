@@ -6,8 +6,9 @@ use rand::seq::SliceRandom;
 use regex::Regex;
 use rusqlite::Connection;
 use serde::Deserialize;
-use std::env;
+use std::{env, iter};
 use once_cell::sync::Lazy;
+use rand::Rng;
 
 use crate::database;
 
@@ -142,6 +143,22 @@ pub fn delete_link(shortlink: String, db: &Connection) -> bool {
     } else {
         false
     }
+}
+
+// Generate a simple API Key(totally not secured!)
+pub fn gen_api_key(db: &Connection) -> (bool, String) {
+    let generated_key: String = generate_string(32);
+    (database::add_api_key(generated_key.clone(), db),
+    generated_key)
+}
+
+// Generate Random String
+// From: https://stackoverflow.com/a/74953997
+fn generate_string(len: usize) -> String {
+    const CHARSET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    let mut rng = rand::thread_rng();
+    let one_char = || CHARSET[rng.gen_range(0..CHARSET.len())] as char;
+    iter::repeat_with(one_char).take(len).collect()
 }
 
 // Generate a random link using either adjective-name pair (default) of a slug or a-z, 0-9

@@ -86,6 +86,23 @@ pub fn edit_link(shortlink: String, longlink: String, db: &Connection) -> bool {
     .is_ok()
 }
 
+pub fn add_api_key(api_key: String, db: &Connection) -> bool {
+    db.execute(
+        "INSERT OR REPLACE INTO api (id, api_key) VALUES (0, ?1);",
+        [api_key]
+    )
+    .is_ok()
+}
+
+pub fn get_api_key(db: &Connection) -> String {
+    let query = db.query_row(
+        "SELECT api_key FROM api WHERE id = 0",
+        [],
+        |row| row.get::<_, String>(0),
+    );
+    query.expect("Failed to fetch API key")
+}
+
 // Open the DB, and create schema if missing
 pub fn open_db(path: String) -> Connection {
     let db = Connection::open(path).expect("Unable to open database!");
@@ -98,6 +115,14 @@ pub fn open_db(path: String) -> Connection {
             hits INTEGER NOT NULL
             )",
         [],
+    )
+    .expect("Unable to initialize empty database.");
+    // create table if doesn't exist. For API key!
+    db.execute("CREATE TABLE IF NOT EXISTS api (
+        id INTEGER PRIMARY KEY CHECK (id = 0),
+        api_key TEXT NOT NULL
+        )",
+         []
     )
     .expect("Unable to initialize empty database.");
     db

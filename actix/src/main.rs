@@ -66,6 +66,7 @@ async fn main() -> Result<()> {
             .service(services::edit_link)
             .service(services::delete_link)
             .service(services::login)
+            .service(services::gen_api_key)
             .service(services::logout)
             .service(Files::new("/", "./resources/").index_file("index.html"))
             .default_service(actix_web::web::get().to(services::error404))

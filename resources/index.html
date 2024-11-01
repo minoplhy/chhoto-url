@@ -69,11 +69,14 @@
     <div name="links-div">
         <a id="admin-button" href="javascript:getLogin()" hidden>login</a>
         &nbsp;
+        <a id="api-key-button" href="javascript:fetchApiKey()" hidden>API Key</a>
+        &nbsp;
         <a id="version-number" href="https://github.com/SinTan1729/chhoto-url" target="_blank" rel="noopener noreferrer"
             hidden>Source Code</a>
-        <!-- The version number would be inserted here -->
     </div>
 
+    <div id="api-key-container"></div>
+    
     <dialog id="login-dialog">
         <form class="pure-form" name="login-form">
             <p>Please enter password to access this website</p>

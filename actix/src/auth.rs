@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: MIT
 
 use actix_session::Session;
-use actix_web::{web, HttpRequest};
+use actix_web::HttpRequest;
+use rusqlite::Connection;
 use std::{env, time::SystemTime};
 
-use crate::database::get_api_key;
-use crate::AppState;
+use crate::database;
 
 // Validate a given password
 pub fn validate(session: Session) -> bool {
@@ -27,11 +27,11 @@ pub fn validate(session: Session) -> bool {
 }
 
 // Validate x-api-header to match the key in database
-pub fn apikey_validate(httprequest: HttpRequest, data: web::Data<AppState>) -> bool {
+pub fn apikey_validate(httprequest: HttpRequest, db: &Connection) -> bool {
     httprequest.headers()
         .get("x-api-key")
         .and_then(|h| h.to_str().ok())
-        .map(|key| key == get_api_key(&data.db))
+        .map(|key| key == database::get_api_key(&db))
         .unwrap_or(false)
 }
 

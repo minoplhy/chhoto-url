@@ -8,7 +8,7 @@ use actix_web::{
 };
 use std::env;
 
-use crate::auth::{self, apikey_validate};
+use crate::auth;
 use crate::database;
 use crate::utils;
 use crate::AppState;
@@ -26,7 +26,7 @@ pub async fn add_link(
     session: Session, 
     httprequest: HttpRequest) 
     -> HttpResponse {
-    if env::var("public_mode") == Ok(String::from("Enable")) || auth::validate(session) || apikey_validate(httprequest, data.clone()) {
+    if env::var("public_mode") == Ok(String::from("Enable")) || auth::validate(session) || auth::apikey_validate(httprequest, &data.db) {
         let out = utils::add_link(req, &data.db);
         if out.0 {
             HttpResponse::Created().body(out.1)
@@ -45,7 +45,7 @@ pub async fn getall(
     session: Session, 
     httprequest: HttpRequest
 ) -> HttpResponse {
-    if auth::validate(session) || apikey_validate(httprequest, data.clone()) {
+    if auth::validate(session) || auth::apikey_validate(httprequest, &data.db) {
         HttpResponse::Ok().body(utils::getall(&data.db))
     } else {
         let body = if env::var("public_mode") == Ok(String::from("Enable")) {
@@ -126,7 +126,7 @@ pub async fn login(req: String, session: Session) -> HttpResponse {
 // Create API Key
 #[post("/api/key")]
 pub async fn gen_api_key(session: Session, httprequest: HttpRequest, data: web::Data<AppState>) -> HttpResponse {
-    if auth::validate(session) || apikey_validate(httprequest, data.clone()) {
+    if auth::validate(session) || auth::apikey_validate(httprequest, &data.db) {
         let key = utils::gen_api_key(&data.db);
         if key.0 {
             HttpResponse::Ok().body(key.1)
@@ -157,7 +157,7 @@ pub async fn edit_link(
     session: Session,
     httprequest: HttpRequest,
 ) -> HttpResponse {
-    if auth::validate(session) || apikey_validate(httprequest, data.clone()) {
+    if auth::validate(session) || auth::apikey_validate(httprequest, &data.db) {
         let out = utils::edit_link(req, shortlink.to_string(), &data.db);
         if out.0 {
             HttpResponse::Created().body(out.1)
@@ -177,7 +177,7 @@ pub async fn delete_link(
     session: Session,
     httprequest: HttpRequest,
 ) -> HttpResponse {
-    if auth::validate(session) || apikey_validate(httprequest, data.clone()) {
+    if auth::validate(session) || auth::apikey_validate(httprequest, &data.db) {
         if utils::delete_link(shortlink.to_string(), &data.db) {
             HttpResponse::Ok().body(format!("Deleted {shortlink}"))
         } else {

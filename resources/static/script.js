@@ -30,7 +30,7 @@ const showVersion = async () => {
     let version = await getVersion();
     link = document.getElementById("version-number");
     link.innerText = "v" + version;
-    link.href = "https://github.com/SinTan1729/chhoto-url/releases/tag/" + version;
+    link.href = "https://github.com/minoplhy/chhoto-url/releases/tag/" + version;
     link.hidden = false;
 }
 
@@ -38,7 +38,17 @@ const getLogin = async () => {
     document.getElementById("container").style.filter = "blur(2px)";
     document.getElementById("login-dialog").showModal();
     document.getElementById("password").focus();
-}
+};
+
+document.addEventListener("DOMContentLoaded", () => {
+    const adminButton = document.getElementById("admin-button");
+    if (adminButton) {
+        adminButton.addEventListener("click", (e) => {
+            e.preventDefault();
+            getLogin();
+        });
+    }
+});
 
 const refreshData = async () => {
     let res = await fetch(prepSubdir("/api/all"));
@@ -65,10 +75,20 @@ const refreshData = async () => {
 const displayData = async (data) => {
     showVersion();
     let site = await getSiteUrl();
-    admin_button = document.getElementById("admin-button");
+
+    const admin_button = document.getElementById("admin-button");
     admin_button.innerText = "logout";
-    admin_button.href = "javascript:logOut()";
+    admin_button.removeAttribute("href");
     admin_button.hidden = false;
+
+    const newButton = admin_button.cloneNode(true);
+    newButton.href = "#";
+    admin_button.parentNode.replaceChild(newButton, admin_button);
+
+    newButton.addEventListener("click", (e) => {
+        e.preventDefault();
+        logOut();
+    });
 
     apikey_button = document.getElementById("api-key-button");
     apikey_button.innerText = "API Key"
@@ -104,6 +124,15 @@ const showAlert = async (text, col) => {
     alertBox.innerHTML = text;
     controls.appendChild(alertBox);
 }
+
+document.addEventListener("click", (e) => {
+    const link = e.target.closest(".copy-short-url");
+    if (link) {
+        e.preventDefault();
+        const shortlink = link.dataset.shortlink;
+        copyShortUrl(shortlink);
+    }
+});
 
 const TR = (row, site) => {
     const tr = document.createElement("tr");
@@ -153,8 +182,16 @@ const addProtocol = (input) => {
     return input;
 }
 
+document.addEventListener("DOMContentLoaded", () => {
+    const longUrlInput = document.getElementById("longUrl");
+
+    longUrlInput.addEventListener("blur", () => {
+        addProtocol(longUrlInput);
+    });
+});
+
 const A_LONG = (s) => `<a href='${s}'>${s}</a>`;
-const A_SHORT = (s, t) => `<a href="javascript:copyShortUrl('${s}');">${s}</a>`;
+const A_SHORT = (s, t) => `<a href="#" class="copy-short-url" data-shortlink="${s}">${s}</a>`;
 const A_SHORT_INSECURE = (s, t) => `<a href="${t}/${s}">${s}</a>`;
 
 const deleteButton = (shortUrl) => {
@@ -311,6 +348,16 @@ const fetchApiKey = async () => {
         alert("Failed to fetch API Key: " + error_text);
     }
 }
+
+document.addEventListener("DOMContentLoaded", () => {
+    const adminButton = document.getElementById("api-key-button");
+    if (adminButton) {
+        adminButton.addEventListener("click", (e) => {
+            e.preventDefault();
+            fetchApiKey();
+        });
+    }
+});
 
 const logOut = async () => {
     let reply = await fetch(prepSubdir("/api/logout"), {method: "DELETE"}).then(res => res.text());

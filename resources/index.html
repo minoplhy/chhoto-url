@@ -32,8 +32,7 @@
                 <legend id="logo"><img src="assets/favicon-32.png" width="26px" alt="logo"> Chhoto URL</legend>
                 <div class="pure-control-group">
                     <label for="longUrl">Long URL</label>
-                    <input type="url" name="longUrl" id="longUrl" placeholder="Please enter a valid URL"
-                        onblur="addProtocol(this)" required />
+                    <input type="url" name="longUrl" id="longUrl" placeholder="Please enter a valid URL" required />
                 </div>
                 <div class="pure-control-group">
                     <label for="shortUrl">Short URL (optional)</label>
@@ -67,9 +66,9 @@
     </div>
 
     <div name="links-div">
-        <a id="admin-button" href="javascript:getLogin()" hidden>login</a>
+        <a id="admin-button" href="#" hidden>login</a>
         &nbsp;
-        <a id="api-key-button" href="javascript:fetchApiKey()" hidden>API Key</a>
+        <a id="api-key-button" href="#" hidden>API Key</a>
         &nbsp;
         <a id="version-number" href="https://github.com/minoplhy/chhoto-url" target="_blank" rel="noopener noreferrer"
             hidden>Source Code</a>

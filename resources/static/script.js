@@ -57,7 +57,7 @@ const refreshData = async () => {
         }
     } else {
         let data = await res.json();
-        displayData(data);
+        displayData(data.reverse());
         document.getElementById("api-key-button").hidden = false; // Show API Key button when logged in
     }
 }

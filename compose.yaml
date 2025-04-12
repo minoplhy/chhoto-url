@@ -24,6 +24,16 @@ services:
             # - site_url=https://www.example.com
 
             - password=TopSecretPass
+
+            # Change it in case you want to change the path of api and frontend
+            # THIS WILL NOT CHANGE THE PATH OF SHORTURL!
+            # Example:
+            # api_url=/ui/
+            #   UI          -> https://example.com/ui/
+            #   API         -> https://example.com/ui/api
+            #   SHORTLINK   -> https://example.com/shortlink
+            #
+            # - api_url=
             
             # Pass the redirect method, if needed. TEMPORARY and PERMANENT
             # are accepted values, defaults to PERMANENT.

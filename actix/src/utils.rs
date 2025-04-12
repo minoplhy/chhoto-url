@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 use nanoid::nanoid;
-use rand::seq::SliceRandom;
+use rand::seq::IndexedRandom;
 use regex::Regex;
 use rusqlite::Connection;
 use serde::Deserialize;
@@ -156,8 +156,8 @@ pub fn gen_api_key(db: &Connection) -> (bool, String) {
 // From: https://stackoverflow.com/a/74953997
 fn generate_string(len: usize) -> String {
     const CHARSET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-    let mut rng = rand::thread_rng();
-    let one_char = || CHARSET[rng.gen_range(0..CHARSET.len())] as char;
+    let mut rng = rand::rng();
+    let one_char = || CHARSET[rng.random_range(0..CHARSET.len())] as char;
     iter::repeat_with(one_char).take(len).collect()
 }
 
@@ -204,10 +204,10 @@ fn gen_link(style: String, len: usize) -> String {
         format!(
             "{0}-{1}",
             ADJECTIVES
-                .choose(&mut rand::thread_rng())
+                .choose(&mut rand::rng())
                 .expect("Error choosing random adjective."),
             NAMES
-                .choose(&mut rand::thread_rng())
+                .choose(&mut rand::rng())
                 .expect("Error choosing random name.")
         )
     }

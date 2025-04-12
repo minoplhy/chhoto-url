@@ -38,6 +38,16 @@ async fn main() -> Result<()> {
         .ok()
         .filter(|s| !s.trim().is_empty());
 
+    let api_url = {
+        let mut get_api_url = env::var("api_url".replace("//", "/"))
+        .ok()
+        .unwrap_or_default();
+        if get_api_url.ends_with("/") {
+            get_api_url.pop();
+        }
+        get_api_url
+    };
+
     // Actually start the server
     HttpServer::new(move || {
         App::new()
@@ -59,16 +69,18 @@ async fn main() -> Result<()> {
                 middleware::DefaultHeaders::new()
             })
             .service(services::link_handler)
-            .service(services::getall)
-            .service(services::siteurl)
-            .service(services::version)
-            .service(services::add_link)
-            .service(services::edit_link)
-            .service(services::delete_link)
-            .service(services::login)
-            .service(services::gen_api_key)
-            .service(services::logout)
-            .service(Files::new("/", "./resources/").index_file("index.html"))
+            .service(web::scope(&api_url)
+                .service(services::getall)
+                .service(services::siteurl)
+                .service(services::version)
+                .service(services::add_link)
+                .service(services::edit_link)
+                .service(services::delete_link)
+                .service(services::login)
+                .service(services::gen_api_key)
+                .service(services::logout)
+                .service(Files::new("/", "./resources/").index_file("index.html"))
+        )
             .default_service(actix_web::web::get().to(services::error404))
     })
     .bind(("0.0.0.0", port))?

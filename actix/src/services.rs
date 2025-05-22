@@ -26,12 +26,14 @@ pub async fn add_link(
     session: Session, 
     httprequest: HttpRequest) 
     -> HttpResponse {
-    if env::var("public_mode") == Ok(String::from("Enable")) || auth::validate(session) || auth::apikey_validate(httprequest, &data.db) {
-        let out = utils::add_link(req, &data.db);
-        if out.0 {
-            HttpResponse::Created().body(out.1)
+    
+    let config = &data.config;
+    if config.public_mode || auth::validate(session) || auth::apikey_validate(httprequest, &data.db) {
+        let (is_ok, output_url) = utils::add_link(req, &data.db);
+        if is_ok {
+            HttpResponse::Created().body(output_url)
         } else {
-            HttpResponse::Conflict().body(out.1)
+            HttpResponse::Conflict().body(output_url)
         }
     } else {
         HttpResponse::Unauthorized().body("Not logged in!")
@@ -45,10 +47,12 @@ pub async fn getall(
     session: Session, 
     httprequest: HttpRequest
 ) -> HttpResponse {
+    
+    let config = &data.config;
     if auth::validate(session) || auth::apikey_validate(httprequest, &data.db) {
         HttpResponse::Ok().body(utils::getall(&data.db))
     } else {
-        let body = if env::var("public_mode") == Ok(String::from("Enable")) {
+        let body = if config.public_mode {
             "Using public mode."
         } else {
             "Not logged in!"
@@ -59,12 +63,10 @@ pub async fn getall(
 
 // Get the site URL
 #[get("/api/siteurl")]
-pub async fn siteurl() -> HttpResponse {
-    let site_url = env::var("site_url")
-        .ok()
-        .filter(|s| !s.trim().is_empty())
-        .unwrap_or(String::from("unset"));
-    HttpResponse::Ok().body(site_url)
+pub async fn siteurl(
+    data: web::Data<AppState>
+) -> HttpResponse {
+    HttpResponse::Ok().body(data.config.site_url.clone())
 }
 
 // Get the version number
@@ -89,9 +91,8 @@ pub async fn link_handler(
 ) -> impl Responder {
     let shortlink_str = shortlink.to_string();
     if let Some(longlink) = utils::get_longurl(shortlink_str, &data.db) {
-        let redirect_method = env::var("redirect_method").unwrap_or(String::from("PERMANENT"));
         database::add_hit(shortlink.as_str(), &data.db);
-        if redirect_method == "TEMPORARY" {
+        if &data.config.redirect_method == "TEMPORARY" {
             Either::Left(Redirect::to(longlink))
         } else {
             // Defaults to permanent redirection
@@ -109,9 +110,13 @@ pub async fn link_handler(
 
 // Handle login
 #[post("/api/login")]
-pub async fn login(req: String, session: Session) -> HttpResponse {
-    if let Ok(password) = env::var("password") {
-        if password != req {
+pub async fn login(
+    req: String,
+    session: Session,
+    data: web::Data<AppState>,
+) -> HttpResponse {
+    if let Some(ref password) = data.config.password {
+        if password != &req {
             eprintln!("Failed login attempt!");
             return HttpResponse::Unauthorized().body("Wrong password!");
         }
@@ -127,9 +132,9 @@ pub async fn login(req: String, session: Session) -> HttpResponse {
 #[post("/api/key")]
 pub async fn gen_api_key(session: Session, httprequest: HttpRequest, data: web::Data<AppState>) -> HttpResponse {
     if auth::validate(session) || auth::apikey_validate(httprequest, &data.db) {
-        let key = utils::gen_api_key(&data.db);
-        if key.0 {
-            HttpResponse::Ok().body(key.1)
+        let (is_ok, output) = utils::gen_api_key(&data.db);
+        if is_ok {
+            HttpResponse::Ok().body(output)
         } else {
             HttpResponse::Conflict().body("Generate Api Key Error!")
         }
@@ -158,11 +163,11 @@ pub async fn edit_link(
     httprequest: HttpRequest,
 ) -> HttpResponse {
     if auth::validate(session) || auth::apikey_validate(httprequest, &data.db) {
-        let out = utils::edit_link(req, shortlink.to_string(), &data.db);
-        if out.0 {
-            HttpResponse::Created().body(out.1)
+        let (is_ok, output) = utils::edit_link(req, shortlink.to_string(), &data.db);
+        if is_ok {
+            HttpResponse::Created().body(output)
         } else {
-            HttpResponse::Conflict().body(out.1)
+            HttpResponse::Conflict().body(output)
         }
     } else {
         HttpResponse::Unauthorized().body("Not logged in!")

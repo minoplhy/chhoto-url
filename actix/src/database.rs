@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Sayantan Santra <sayantan.santra689@gmail.com>
 // SPDX-License-Identifier: MIT
 
-use rusqlite::Connection;
+use rusqlite::{Connection, Error};
 use serde::Serialize;
 
 // Struct for encoding a DB row
@@ -94,13 +94,22 @@ pub fn add_api_key(api_key: String, db: &Connection) -> bool {
     .is_ok()
 }
 
-pub fn get_api_key(db: &Connection) -> String {
-    let query = db.query_row(
+pub fn reset_api_key(db: &Connection) -> bool {
+    db.execute(
+        "DELETE FROM api WHERE id = 0;",
+        []
+    )
+    .is_ok()
+}
+
+// get hashed api key from db, output as enum for later error processing
+// etc -> no api key
+pub fn get_api_key(db: &Connection) -> Result<String, Error> {
+    db.query_row(
         "SELECT api_key FROM api WHERE id = 0",
         [],
         |row| row.get::<_, String>(0),
-    );
-    query.expect("Failed to fetch API key")
+    )
 }
 
 // Open the DB, and create schema if missing

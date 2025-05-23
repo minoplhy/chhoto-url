@@ -8,7 +8,7 @@ use actix_web::{
 };
 use std::env;
 
-use crate::auth;
+use crate::auth::{self, authenticate};
 use crate::database;
 use crate::utils;
 use crate::AppState;
@@ -27,17 +27,16 @@ pub async fn add_link(
     httprequest: HttpRequest) 
     -> HttpResponse {
     
-    let config = &data.config;
-    if config.public_mode || auth::validate(session) || auth::apikey_validate(httprequest, &data.db) {
-        let (is_ok, output_url) = utils::add_link(req, &data.db);
+    if authenticate(session, httprequest, &data.db, &data.config) {
+       let (is_ok, output_url) = utils::add_link(req, &data.db, &data.config);
         if is_ok {
-            HttpResponse::Created().body(output_url)
+            return HttpResponse::Created().body(output_url);
         } else {
-            HttpResponse::Conflict().body(output_url)
+            return HttpResponse::Conflict().body(output_url);
         }
-    } else {
-        HttpResponse::Unauthorized().body("Not logged in!")
     }
+    
+    HttpResponse::Unauthorized().body("Not logged in!")
 }
 
 // Return all active links
@@ -48,17 +47,16 @@ pub async fn getall(
     httprequest: HttpRequest
 ) -> HttpResponse {
     
-    let config = &data.config;
-    if auth::validate(session) || auth::apikey_validate(httprequest, &data.db) {
-        HttpResponse::Ok().body(utils::getall(&data.db))
-    } else {
-        let body = if config.public_mode {
-            "Using public mode."
-        } else {
-            "Not logged in!"
-        };
-        HttpResponse::Unauthorized().body(body)
+    if authenticate(session, httprequest, &data.db, &data.config) {
+        return HttpResponse::Ok().body(utils::getall(&data.db));
     }
+
+    let body = if data.config.public_mode {
+        "Using public mode."
+    } else {
+        "Not logged in!"
+    };
+    HttpResponse::Unauthorized().body(body)
 }
 
 // Get the site URL
@@ -130,13 +128,34 @@ pub async fn login(
 
 // Create API Key
 #[post("/api/key")]
-pub async fn gen_api_key(session: Session, httprequest: HttpRequest, data: web::Data<AppState>) -> HttpResponse {
-    if auth::validate(session) || auth::apikey_validate(httprequest, &data.db) {
-        let (is_ok, output) = utils::gen_api_key(&data.db);
+pub async fn gen_api_key(
+    session: Session,
+    data: web::Data<AppState>
+) -> HttpResponse {
+    if auth::validate(session, &data.config) {
+        let (is_ok, output) = utils::gen_api_key(&data.db, data.config.api_key_size);
         if is_ok {
             HttpResponse::Ok().body(output)
         } else {
-            HttpResponse::Conflict().body("Generate Api Key Error!")
+            HttpResponse::Conflict().body("Generate API Key Error!")
+        }
+    } else {
+        HttpResponse::Unauthorized().body("Not logged in!")
+    }
+}
+
+// Reset API Key
+#[delete("/api/key")]
+pub async fn reset_api_key(
+    session: Session,
+    data: web::Data<AppState>
+) -> HttpResponse {
+    if auth::validate(session, &data.config) {
+        let (is_ok, output) = utils::reset_api_key(&data.db);
+        if is_ok {
+            HttpResponse::Ok().body(output)
+        } else {
+            HttpResponse::Conflict().body("Reset API Key Error!")
         }
     } else {
         HttpResponse::Unauthorized().body("Not logged in!")
@@ -162,7 +181,8 @@ pub async fn edit_link(
     session: Session,
     httprequest: HttpRequest,
 ) -> HttpResponse {
-    if auth::validate(session) || auth::apikey_validate(httprequest, &data.db) {
+
+    if authenticate(session, httprequest, &data.db, &data.config) {
         let (is_ok, output) = utils::edit_link(req, shortlink.to_string(), &data.db);
         if is_ok {
             HttpResponse::Created().body(output)
@@ -182,7 +202,8 @@ pub async fn delete_link(
     session: Session,
     httprequest: HttpRequest,
 ) -> HttpResponse {
-    if auth::validate(session) || auth::apikey_validate(httprequest, &data.db) {
+
+    if authenticate(session, httprequest, &data.db, &data.config) {
         if utils::delete_link(shortlink.to_string(), &data.db) {
             HttpResponse::Ok().body(format!("Deleted {shortlink}"))
         } else {

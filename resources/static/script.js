@@ -59,6 +59,7 @@ const refreshData = async () => {
         if (errorMsg == "Using public mode.") {
             document.getElementById("admin-button").hidden = false;
             document.getElementById("api-key-button").hidden = true; // Hide initially
+            document.getElementById("reset-api-key-button").hidden = true;
             loading_text = document.getElementById("loading-text");
             loading_text.hidden = true;
             showVersion();
@@ -69,6 +70,7 @@ const refreshData = async () => {
         let data = await res.json();
         displayData(data.reverse());
         document.getElementById("api-key-button").hidden = false; // Show API Key button when logged in
+        document.getElementById("reset-api-key-button").hidden = false;
     }
 }
 
@@ -93,6 +95,10 @@ const displayData = async (data) => {
     apikey_button = document.getElementById("api-key-button");
     apikey_button.innerText = "API Key"
     apikey_button.hidden = false;
+
+    reset_apikey_button = document.getElementById("reset-api-key-button");
+    reset_apikey_button.innerText = "Reset API Key"
+    reset_apikey_button.hidden = false;
 
     table_box = document.getElementById("table-box");
     loading_text = document.getElementById("loading-text");
@@ -349,12 +355,38 @@ const fetchApiKey = async () => {
     }
 }
 
+const fetchResetApiKey = async () => {
+    const response = await fetch(prepSubdir("/api/key"), {
+        method: "DELETE"
+    });
+
+    if (response.ok) {
+        const apiKey = await response.text();
+        showAlert("Reset API Key Successfully with response: "+apiKey, "green");
+    } else {
+        const error_text = await response.text();
+        alert("Failed to fetch Reset API Key: " + error_text);
+    }
+}
+
 document.addEventListener("DOMContentLoaded", () => {
     const adminButton = document.getElementById("api-key-button");
     if (adminButton) {
         adminButton.addEventListener("click", (e) => {
             e.preventDefault();
             fetchApiKey();
+        });
+    }
+});
+
+document.addEventListener("DOMContentLoaded", () => {
+    const adminButton = document.getElementById("reset-api-key-button");
+    if (adminButton) {
+        adminButton.addEventListener("click", (e) => {
+            e.preventDefault();
+            if (confirm("Do you want to reset API Key?")) {
+                fetchResetApiKey();
+            }
         });
     }
 });

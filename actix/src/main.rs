@@ -28,8 +28,7 @@ async fn main() -> Result<()> {
     let config_clone = config.clone();
 
     // Generate session key in runtime so that restart invalidates older logins
-    // let secret_key = Key::generate();
-    // -> Moved to SessionMiddleware but retain the clue here for now
+    let secret_key = Key::generate();
 
     // Actually start the server
     HttpServer::new(move || {
@@ -37,7 +36,7 @@ async fn main() -> Result<()> {
             .wrap(middleware::Logger::default())
             .wrap(middleware::Compress::default())
             .wrap(
-                SessionMiddleware::builder(CookieSessionStore::default(), Key::generate())
+                SessionMiddleware::builder(CookieSessionStore::default(), secret_key.clone())
                     .cookie_same_site(actix_web::cookie::SameSite::Strict)
                     .cookie_secure(false)
                     .build(),
@@ -62,6 +61,7 @@ async fn main() -> Result<()> {
                 .service(services::delete_link)
                 .service(services::login)
                 .service(services::gen_api_key)
+                .service(services::reset_api_key)
                 .service(services::logout)
                 .service(Files::new("/", "./resources/").index_file("index.html"))
         )

@@ -9,7 +9,10 @@ pub struct Config {
     pub public_mode: bool,
     pub site_url: String,
     pub redirect_method: String,
-    pub password: Option<String>
+    pub password: Option<String>,
+    pub slug_style: String,
+    pub slug_length: usize,
+    pub api_key_size: usize,
 }
 
 impl Config {
@@ -50,6 +53,20 @@ impl Config {
         let password = env::var("password")
             .ok();
 
+        let slug_style = env::var("slug_style").unwrap_or(String::from("Pair"));
+        let mut slug_length = env::var("slug_length")
+            .ok()
+            .and_then(|s| s.parse::<usize>().ok())
+            .unwrap_or(8);
+        if slug_length < 4 {
+            slug_length = 4;
+        }
+
+        let api_key_size = env::var("api_key_size")
+            .ok()
+            .and_then(|s| s.parse::<usize>().ok())
+            .unwrap_or(32);
+    
         Self {
             db_url: (db_location), 
             port: (port), 
@@ -58,7 +75,10 @@ impl Config {
             public_mode: (public_mode),
             site_url: (site_url),
             redirect_method: (redirect_method),
-            password: (password)
+            password: (password),
+            slug_style: (slug_style),
+            slug_length: (slug_length),
+            api_key_size: (api_key_size)
         }
     }
 }

@@ -4,18 +4,19 @@
 use actix_session::Session;
 use actix_web::HttpRequest;
 use rusqlite::Connection;
-use std::{env, time::SystemTime};
+use std::time::SystemTime;
 
 use crate::database;
+use crate::config::Config;
+use crate::utils::{hash_string, is_api_header};
 
 // Validate a given password
-pub fn validate(session: Session) -> bool {
+pub fn validate(
+    session: Session,
+    config: &Config,
+) -> bool {
     // If there's no password provided, just return true
-    if env::var("password")
-        .ok()
-        .filter(|s| !s.trim().is_empty())
-        .is_none()
-    {
+    if config.password.is_none() {
         return true;
     }
 
@@ -28,11 +29,36 @@ pub fn validate(session: Session) -> bool {
 
 // Validate x-api-header to match the key in database
 pub fn apikey_validate(httprequest: HttpRequest, db: &Connection) -> bool {
-    httprequest.headers()
-        .get("x-api-key")
-        .and_then(|h| h.to_str().ok())
-        .map(|key| key == database::get_api_key(&db))
-        .unwrap_or(false)
+    let header = match httprequest.headers().get("x-api-key")
+        .and_then(|h| h.to_str().ok()) {
+            Some(key) if !key.is_empty() => key,
+            _ => return false,
+        };
+    
+    //  match with enum from db func, if no api key in row/others error -> return false
+    match database::get_api_key(&db) {
+        Ok(stored_key) => hash_string(&header.to_string()) == stored_key,
+        Err(_) => {
+            false
+        }
+    }}
+
+pub fn authenticate(
+    session: Session,
+    httprequest: HttpRequest,
+    db: &Connection,
+    config: &Config, 
+) -> bool {
+    if !is_api_header(&httprequest) {
+        if validate(session, &config) {
+            return true;
+        }
+    }
+
+    if apikey_validate(httprequest, db) {
+        return true;
+    }
+    false
 }
 
 // Check a token cryptographically

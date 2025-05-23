@@ -54,6 +54,10 @@ services:
             # comma separated list of valid header as per RFC 7234 §5.2 to send those
             # headers instead.
             # - cache_control_header=no-cache, private
+            #
+            
+            # Set API Key lenght(default: 32 chars)
+            # - api_key_size=32
         volumes:
             - db:/db
 

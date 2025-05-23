@@ -1,16 +1,18 @@
 // SPDX-FileCopyrightText: 2023 Sayantan Santra <sayantan.santra689@gmail.com>
 // SPDX-License-Identifier: MIT
 
+use actix_web::HttpRequest;
 use nanoid::nanoid;
 use rand::seq::IndexedRandom;
 use regex::Regex;
 use rusqlite::Connection;
 use serde::Deserialize;
-use std::{env, iter};
+use std::iter;
 use once_cell::sync::Lazy;
 use rand::Rng;
+use sha2::{Sha256, Digest};
 
-use crate::database;
+use crate::{config::Config, database};
 
 // Struct for reading link pairs sent during API call
 #[derive(Deserialize)]
@@ -42,6 +44,10 @@ pub fn get_longurl(shortlink: String, db: &Connection) -> Option<String> {
     }
 }
 
+pub fn is_api_header(httprequest: &HttpRequest) -> bool {
+    httprequest.headers().get("x-api-key").is_some()
+}
+
 // Only have a-z, 0-9, - and _ as valid characters in a shortlink
 fn validate_link(link: &str) -> bool {
     let re = Regex::new("^[a-z0-9-_]+$").expect("Regex generation failed.");
@@ -55,7 +61,11 @@ pub fn getall(db: &Connection) -> String {
 }
 
 // Make checks and then request the DB to add a new URL entry
-pub fn add_link(req: String, db: &Connection) -> (bool, String) {
+pub fn add_link(
+    req: String,
+    db: &Connection,
+    config: &Config
+) -> (bool, String) {
     let mut chunks: URLPair;
     if let Ok(json) = serde_json::from_str(&req) {
         chunks = json;
@@ -72,14 +82,8 @@ pub fn add_link(req: String, db: &Connection) -> (bool, String) {
         )
     }
 
-    let style = env::var("slug_style").unwrap_or(String::from("Pair"));
-    let mut len = env::var("slug_length")
-        .ok()
-        .and_then(|s| s.parse::<usize>().ok())
-        .unwrap_or(8);
-    if len < 4 {
-        len = 4;
-    }
+    let style = config.slug_style.clone();
+    let len = config.slug_length;
 
     if chunks.shortlink.is_empty() {
         chunks.shortlink = gen_link(style, len);
@@ -122,18 +126,28 @@ pub fn edit_link(req: String, shortlink: String, db: &Connection) -> (bool, Stri
         )
     }
 
-    if longurl_compares(shortlink.clone(), chunks.longlink.clone(), db)
-    {
-        (
-            database::edit_link(shortlink.clone(), chunks.longlink, db),
-            shortlink,
-        )
+    let db_longurl = get_longurl(shortlink.clone(), db);
+
+    // url compares moved here
+    if let Some(ref url) = db_longurl {
+        if url == &chunks.longlink {
+            return (
+                false,
+                String::from("LongURL is the same!")
+            );
+        } else {
+            return (
+                database::edit_link(shortlink.clone(), chunks.longlink, db),
+                shortlink,
+            );
+        }
     } else {
-        (
+        return (
             false,
-            String::from("Long/Short URL not valid or already in use!"),
-        )
+            String::from("LongURL does not existed!")
+        );
     }
+
 }
 
 // Check if link, and request DB to delete it if exists
@@ -146,10 +160,22 @@ pub fn delete_link(shortlink: String, db: &Connection) -> bool {
 }
 
 // Generate a simple API Key(totally not secured!)
-pub fn gen_api_key(db: &Connection) -> (bool, String) {
-    let generated_key: String = generate_string(32);
-    (database::add_api_key(generated_key.clone(), db),
+pub fn gen_api_key(
+    db: &Connection,
+    string_size: usize,
+) -> (bool, String) {
+    let generated_key: String = generate_string(string_size);
+    let hashed_key: String = hash_string(&generated_key);
+    (database::add_api_key(hashed_key, db),
     generated_key)
+}
+
+// Reset API Key
+pub fn reset_api_key(
+    db: &Connection,
+) -> (bool, String) {
+    (database::reset_api_key(db),
+    String::from("done"))
 }
 
 // Generate Random String
@@ -213,19 +239,12 @@ fn gen_link(style: String, len: usize) -> String {
     }
 }
 
-// Doing Longurl check(Type None or existed?)
-fn longurl_compares(shorturl: String, longurl:String, db: &Connection) -> bool {
-    if get_longurl(shorturl.clone(), db).is_none() {
-        return false;
-    }
-
-    if get_longurl(shorturl.clone(), db).unwrap() == longurl {
-        return  false;
-    }
-    return true;
-}
-
 // Check if input is URL or not.
 fn url_scheme_check(url: String) -> bool {
     return LAZY_REGEX.is_match(&url)
+}
+
+// hash a string to be kept in db(api-key)
+pub fn hash_string(input: &String) -> String {
+    return format!("{:x}", Sha256::digest(input));
 }
